@@ -21,12 +21,34 @@ class HierarchyAddress(str):
         pass 
 
     @property
-    def base_object(self):
+    def ancestor_object_name(self):
+        return self.address_parts[0]
+
+    @property
+    def base_object_name(self):
         return self.address_parts[-1]
     
     def get_common_ancestor(self, address: HierarchyAddress):
         common_ancestors = [A for A in self.address_parts if A in address.address_parts]
         return common_ancestors[-1]
+    
+    def prefix(self, name: str, allow_repetition: bool = False):
+        """
+        Returns a new address formed as `self`, prefixed with `name`.
+
+        Args:
+            name: name to prefix the address with
+            allow_repetition: if False, the address will not be prefixed if `name` is already an element of `self.address_parts`. 
+        """
+        if name in self.address_parts and not allow_repetition:
+            return self
+        else:
+            new_address = HIERARCHY_SEPARATOR.join([name, self])
+            return type(self)(new_address)
+        
+    def strip(self):
+        new_address = self.split(HIERARCHY_SEPARATOR, 1)[1]
+        return type(self)(new_address)
 
 
 class PortHierarchyAddress(HierarchyAddress):
@@ -36,4 +58,5 @@ class PortHierarchyAddress(HierarchyAddress):
     def __new__(cls, address: HierarchySeparatedStr):
         obj = super().__new__(cls, address)
         obj.port_name = obj.address_parts.pop(-1)
+        obj.object_address = HIERARCHY_SEPARATOR.join(obj.address_parts)
         return obj
