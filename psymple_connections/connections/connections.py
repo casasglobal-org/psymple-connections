@@ -2,10 +2,10 @@ from ..hierarchy.addresses import HierarchyAddress
 from .addressed_ports import AddressedPort
 
 class Connection:
-    def __init__(self, first_port: AddressedPort, second_port: AddressedPort, object_address: HierarchyAddress):
+    def __init__(self, first_port: AddressedPort, second_port: AddressedPort):
         self.first_port = first_port
         self.second_port = second_port
-        self.object_address = object_address
+        #self.object_address = object_address
 
     def prefix_ports(self, object_name: str, allow_repetition: bool = False):
         new_first_port = self.first_port.prefix_address(object_name, allow_repetition)
@@ -42,11 +42,3 @@ class Connections(list):
     def view_ports(self):
         return [list(connection.addressed_ports.keys()) for connection in self]
     
-"""
-Let's say I have D.v -> A.H.J.K.v (in D)
-This should rise to C.D.v -> A.H.J.K.v in (C)
-Currently, it rises to C.D.v -> C.A.H.J.K.v in (C). not good. 
-
-The use case for prefixing is only for lower relative connections. Can we somehow mitigate that?
-
-"""

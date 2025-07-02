@@ -13,9 +13,9 @@ class TestAddressedPort:
 
     def test_address_prefixing(self):
         P = AddressedPort("p", "A.B.C.p")
-        P.prefix_address("X")
+        prefixed = P.prefix_address("X")
 
-        assert P.address == "X.A.B.C.p"
+        assert prefixed.address == "X.A.B.C.p"
 
 class TestConnection:
     def test_prefix_ports(self):
@@ -24,39 +24,37 @@ class TestConnection:
         obj_address = HierarchyAddress("A.B.C")
         
         # Test 1 - prefix by existing object name
-        C = Connection(P, Q, obj_address)
+        C = Connection(P, Q)
         prefix = "B"
         C.prefix_ports(prefix)
 
         assert C.first_port.address == "A.B.C.p"
-        assert C.second_port.address == "B.C.D.q"
+        assert C.second_port.address == "C.D.q"
 
         # Test 2 - prefix by other object name
         prefix = "X"
         C.prefix_ports(prefix)
 
         assert C.first_port.address == "X.A.B.C.p"
-        assert C.second_port.address == "X.B.C.D.q"
+        assert C.second_port.address == "X.C.D.q"
 
     def test_addresses(self):
         P = AddressedPort("p", "A.B.C.p")
         Q = AddressedPort("q", "C.D.q")
-        obj_address = HierarchyAddress("A.B.C")
 
-        C = Connection(P, Q, obj_address)
+        C = Connection(P, Q)
 
-        assert C.addresses == ("A.B.C.p", "C.D.q")
+        assert C.addressed_ports == {"A.B.C.p": P, "C.D.q": Q}
 
 class TestConnections:
     def test_add_connections(self):
         P = AddressedPort("p", "A.B.C.p")
         Q = AddressedPort("q", "A.B.C.q")
         R = AddressedPort("r", "A.B.C.r")
-        obj_address = HierarchyAddress("A.B.C")
 
-        C_1 = Connection(P, Q, obj_address)
-        C_2 = Connection(P, R, obj_address)
-        C_3 = Connection(Q, R, obj_address)
+        C_1 = Connection(P, Q)
+        C_2 = Connection(P, R)
+        C_3 = Connection(Q, R)
 
         C = Connections(C_1, C_2)
 
@@ -69,9 +67,8 @@ class TestConnections:
     def test_prefix_connections(self):
         P = AddressedPort("p", "A.B.C.p")
         Q = AddressedPort("q", "A.B.C.q")
-        obj_address = HierarchyAddress("A.B.C")
 
-        C_1 = Connection(P, Q, obj_address)
+        C_1 = Connection(P, Q)
 
         C = Connections(C_1)
 
@@ -84,13 +81,13 @@ class TestConnections:
         P = AddressedPort("p", "A.B.C.p")
         Q = AddressedPort("q", "A.B.C.q")
         R = AddressedPort("r", "A.B.C.r")
-        obj_address = HierarchyAddress("A.B.C")
 
-        C_1 = Connection(P, Q, obj_address)
-        C_2 = Connection(P, R, obj_address)
-        C_3 = Connection(Q, R, obj_address)
+        C_1 = Connection(P, Q)
+        C_2 = Connection(P, R)
+        C_3 = Connection(Q, R)
 
         C = Connections(C_1, C_2, C_3)
 
-        assert C.addresses == [("A.B.C.p", "A.B.C.q"), ("A.B.C.p", "A.B.C.r"), ("A.B.C.q", "A.B.C.r")]
-        assert C.elements == {"A.B.C.p", "A.B.C.q", "A.B.C.r"}
+        assert C.addressed_ports == [{"A.B.C.p": P, "A.B.C.q": Q}, {"A.B.C.p": P, "A.B.C.r": R}, {"A.B.C.q": Q, "A.B.C.r": R}]
+        assert C.view_ports == [["A.B.C.p", "A.B.C.q"], ["A.B.C.p", "A.B.C.r"], ["A.B.C.q", "A.B.C.r"]]
+        assert C.elements == {"A.B.C.p": P, "A.B.C.q": Q, "A.B.C.r": R}

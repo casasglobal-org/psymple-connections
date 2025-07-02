@@ -3,6 +3,7 @@ from .addressed_ports import (
     AddressedInputPort,
     AddressedOutputPort,
     AddressedVariablePort,
+    AddressedBaseOutputPort,
 )
 
 from abc import ABC, abstractmethod
@@ -121,22 +122,21 @@ class ParameterWireGroup(WireGroup):
                 )
         else: 
             # Find the unique base output port, or raise an error if none or more than one is found.
+            # TODO: This algo is junk. What do?
             child_ports = self.port_hierarhcy.get("by_child")
             base_output_ports = []
             for child_name, split_ports in child_ports.items():
                 child_ports = split_ports.get("child_ports")
                 descendent_ports = split_ports.get("descendent_ports")
-                search_level = descendent_ports if descendent_ports else child_ports
-                max_address_length = max(len(port.address.address_parts) for port in search_level)
-                base_search_level_ports = [port for port in search_level if len(port.address.address_parts) == max_address_length]
-                base_search_level_output_ports = [port for port in base_search_level_ports if isinstance(port, AddressedOutputPort)]
-                base_output_ports += base_search_level_output_ports
+                all_ports = child_ports + descendent_ports
+                child_base_output_ports = [port for port in all_ports if isinstance(port, AddressedBaseOutputPort)]
+                base_output_ports += child_base_output_ports
 
             number_base_output_ports = len(base_output_ports)
             if number_base_output_ports == 0:
                 raise WireGroupError(
-                    f"The parameter wire connecting ports {self.ports} has {number_local_ports} "
-                    f"could not determine a root."
+                    f"The parameter wire connecting ports {self.ports} has no base ports. "
+                    f"Could not determine a root."
                 )
             if number_base_output_ports == 1:
                 return base_output_ports[0]

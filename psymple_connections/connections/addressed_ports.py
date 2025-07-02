@@ -3,6 +3,9 @@ from ..hierarchy.addresses import HierarchySeparatedStr, PortHierarchyAddress, H
 
 from psymple.build import HIERARCHY_SEPARATOR
 
+class BaseOutputPort(OutputPort):
+    pass
+
 class AddressedPort(Port):
     def __init__(self, name: str, address: HierarchySeparatedStr|PortHierarchyAddress, description: str = ""):
         super().__init__(name, description)
@@ -42,7 +45,10 @@ class AddressedParameterPort(AddressedPort):
         if isinstance(port, InputPort):
             port_class = AddressedInputPort
         elif isinstance(port, OutputPort):
-            port_class = AddressedOutputPort
+            if isinstance(port, BaseOutputPort):
+                port_class = AddressedBaseOutputPort
+            else:
+                port_class = AddressedOutputPort
         else:
             raise TypeError(f"Unrecognised port type for parameter port: {type(port)} for port {port_address}.")
         return port_class(port.name, port_address, port.description, **kwargs)
@@ -53,4 +59,7 @@ class AddressedInputPort(AddressedParameterPort, InputPort):
         self.default_value = default_value 
 
 class AddressedOutputPort(AddressedParameterPort):
+    pass
+
+class AddressedBaseOutputPort(AddressedOutputPort):
     pass

@@ -4,29 +4,40 @@ from ..hierarchy.ported_objects import (
 )
 from ..hierarchy.addresses import PortHierarchyAddress, HierarchySeparatedStr
 from .connections import Connections, Connection
-from .addressed_ports import AddressedVariablePort, AddressedParameterPort, AddressedInputPort, AddressedOutputPort
+from .addressed_ports import (
+    AddressedVariablePort,
+    AddressedParameterPort,
+    AddressedInputPort,
+    AddressedOutputPort,
+    BaseOutputPort,
+)
 from .compiler import ConnectionsCompiler
 from .wire_groups import VariableWireGroup, ParameterWireGroup
 
 from psymple.build import PortedObjectData
-from psymple.build.abstract import PortedObject
+from psymple.build.abstract import PortedObject, PortedObjectWithAssignments
+from psymple.build.ports import OutputPort
 
 from typing import TypedDict, Any
+
+class AddressingError(Exception):
+    pass
+
 
 class ConnectionTypes(TypedDict):
     variable: Any
     parameter: Any
 
+
 ADDRESSED_PORT_CLASSES = ConnectionTypes(
-    variable = AddressedVariablePort,
-    parameter = AddressedParameterPort,
+    variable=AddressedVariablePort,
+    parameter=AddressedParameterPort,
 )
 
 WIRE_GROUP_CLASSES = ConnectionTypes(
-    variable = VariableWireGroup,
-    parameter = ParameterWireGroup,
+    variable=VariableWireGroup,
+    parameter=ParameterWireGroup,
 )
-
 
 
 class PortedObjectWithDummyPorts(PortedObject):
@@ -61,24 +72,27 @@ class PortedObjectWithDummyPorts(PortedObject):
 
         self.dummy_numbers[type]["value"] += 1
         return dummy_name
-    
+
 
 class PortedObjectWithConnections(
     PortedObjectWithDummyPorts, PortedObjectWithHierarchy
 ):
     def __init__(
         self,
-        inputs={},
-        output_connections={},
-        variable_connections={},
+        inputs: dict = {},
+        output_connections: dict = {},
+        variable_connections: dict = {},
+        delay_connection_parsing: bool = True,
         **ported_object_kwargs,
     ):
         super().__init__(**ported_object_kwargs)
         self.variable_connections = Connections()
         self.parameter_connections = Connections()
-        self.add_variable_connections(**variable_connections)
-        self.add_input_connections(**inputs)
-        self.add_output_connections(**output_connections)
+        self._temp_variable_connections = {}
+        self._temp_parameter_connections = {}
+        self.add_variable_connections(delay_connection_parsing, **variable_connections)
+        self.add_input_connections(delay_connection_parsing, **inputs)
+        self.add_output_connections(delay_connection_parsing, **output_connections)
 
     def _parse_connections(
         self,
@@ -104,15 +118,18 @@ class PortedObjectWithConnections(
                 try:
                     common_ancestor = self.get_ancestor_by_address(port_address)
                 except:
-                    raise Exception("Incorrect addressing detected")
+                    raise AddressingError(
+                        f"Incorrect addressing detected from {self.address}: the destintion "
+                        f"port {port_address} could not be found for source {source}"
+                    )
 
                 addressed_source_port = AddressedPortClass.from_port(
                     source_port, self.get_truncated_address(common_ancestor.name)
                 )
-
-                destination_object = common_ancestor._get_child(
-                    port_address.object_address
-                )
+                try:
+                    destination_object = common_ancestor._resolve_destination(port_address.object_address)
+                except Exception as e:
+                    raise AddressingError(f"Couldn't create a connection from {source} to {destination} in {self.address}: {e}")
                 destination_port = destination_object._get_port_by_name(
                     port_address.port_name,
                     type=type,
@@ -122,10 +139,17 @@ class PortedObjectWithConnections(
                     destination_object.get_truncated_address(common_ancestor.name),
                 )
                 connection = Connection(
-                    addressed_source_port, addressed_destination_port, self.address
+                    addressed_source_port, addressed_destination_port
                 )
                 connections_list.append(connection)
         return connections_list
+    
+    def _resolve_destination(self, address):
+        if self.name == address:
+            return self
+        else:
+            raise Exception(f"The address {address} is not recognised in {self.address}. If you're trying to reference a "
+                            f"child of {self.name}, make sure {self.name} is a CompositePortedObjectWithConnections instance.")
 
     """
     def _check_connection(
@@ -173,7 +197,10 @@ class PortedObjectWithConnections(
     """
 
     def add_input_connections(
-        self, overwrite=True, **connections: str | HierarchySeparatedStr
+        self,
+        delay_connection_parsing: bool = True,
+        overwrite=True,
+        **connections: str | HierarchySeparatedStr,
     ):
         # TODO: Do we need to enable overwrite facility?
         # TODO: Enable adding numeric/non-hierarchy connections
@@ -182,25 +209,52 @@ class PortedObjectWithConnections(
                 raise TypeError(
                     f"Multiple inputs {connection} specified for the input connection to port {port} of {self.address}."
                 )
-        self._add_parameter_connections(**connections)
+        self._add_parameter_connections(delay_connection_parsing, **connections)
 
     def add_output_connections(
         self,
+        delay_connection_parsing: bool = True,
         **connections: str | HierarchySeparatedStr | set[str | HierarchySeparatedStr],
     ):
-        self._add_parameter_connections(**connections)
+        self._add_parameter_connections(delay_connection_parsing, **connections)
 
-    def _add_parameter_connections(self, **connections):
-        connections_list = self._parse_connections(type="parameter", **connections)
-        self.parameter_connections.add_connections(*connections_list)
+    def _add_parameter_connections(
+        self, delay_connection_parsing: bool = True, **connections
+    ):
+        self._temp_parameter_connections |= connections
+        if not delay_connection_parsing:
+            self._process_temp_parameter_connections()
 
     def add_variable_connections(
         self,
+        delay_connection_parsing: bool = True,
         **connections: str | HierarchySeparatedStr | set[str | HierarchySeparatedStr],
     ):
         # TODO: Allow non-hierarchy connections to be interpreted as internal variable names
-        connections_list = self._parse_connections(type="variable", **connections)
-        self.variable_connections.add_connections(*connections_list)
+        self._temp_variable_connections |= connections
+        if not delay_connection_parsing:
+            self._process_temp_variable_connections()
+
+    def _process_temp_variable_connections(self):
+        if connections := self._temp_variable_connections:
+            connections_list = self._parse_connections(type="variable", **connections)
+            self.variable_connections.add_connections(*connections_list)
+        self._temp_variable_connections = {}
+
+    def _process_temp_parameter_connections(self):
+        if connections := self._temp_parameter_connections:
+            connections_list = self._parse_connections(type="parameter", **connections)
+            self.parameter_connections.add_connections(*connections_list)
+        self._temp_parameter_connections = {}
+
+
+class PortedObjectWithAssignmentsAndConnections(
+    PortedObjectWithAssignments,
+    PortedObjectWithConnections,
+):
+    def _add_output_port(self, port):
+        port = BaseOutputPort(name=port.name, description=port.description)
+        super()._add_output_port(port)
 
 
 class CompositePortedObjectWithConnections(
@@ -241,12 +295,20 @@ class CompositePortedObjectWithConnections(
         )
         # TODO: Intercept directed and variable wires
 
+    def _resolve_destination(self, address):
+        return self._get_child(address)
+
     def _collect_child_connections(self):
         for child_object in self.children.values():
             try:
                 child_object._collect_child_connections()
-            except:
-                pass
+            except Exception as e:
+                if isinstance(e, AttributeError):
+                    pass
+                else:
+                    raise e
+            child_object._process_temp_parameter_connections()
+            child_object._process_temp_variable_connections()
             child_variable_connections = child_object.variable_connections
             child_parameter_connections = child_object.parameter_connections
             child_variable_connections.prefix_connections(self.name)
@@ -259,7 +321,11 @@ class CompositePortedObjectWithConnections(
         compiled_variable_connections = ConnectionsCompiler(self.variable_connections)
         # TODO: rename
         variable_wire_groups = compiled_variable_connections.wire_groups
-        self._process_connections(variable_wire_groups)
+        self._process_connections("variable", variable_wire_groups)
+
+        compiled_parameter_connections = ConnectionsCompiler(self.parameter_connections)
+        parameter_wire_groups = compiled_parameter_connections.wire_groups
+        self._process_connections("parameter", parameter_wire_groups)
 
     def _process_connections(self, type: str, wire_groups: list):
         WireGroupClass = WIRE_GROUP_CLASSES[type]
@@ -269,22 +335,22 @@ class CompositePortedObjectWithConnections(
 
     def _process_wire_group(self, type: str, wire_group: VariableWireGroup):
         wire_root = wire_group.root
+        
         print(
             "------",
-            "processing wire group",
-            wire_group.ports,
-            "object",
-            self.address,
-            "root",
-            wire_group.root,
+            f"processing {type} wire group",
+            f"object: {self.address}",
+            f"ports: {wire_group.ports}",
+            f"root {wire_group.root}",
             "------",
             sep="\n",
         )
+        
         port_hierarchy = wire_group.port_hierarhcy
         local_ports = port_hierarchy.get("locals")
 
         # Safety check - should never be here
-        #assert len(local_ports) in {0, 1}
+        # assert len(local_ports) in {0, 1}
 
         ports_by_child = port_hierarchy.get("by_child")
         # If there's only one child, then only connect to it if there's a local port.
@@ -296,7 +362,10 @@ class CompositePortedObjectWithConnections(
         if num_child_connections == 1:
             child_name = next(iter(ports_by_child.keys()))
             child_ports = next(iter(ports_by_child.values()))
-            child_object = self.children.get(child_name)
+            try:
+                child_object = self._get_child(child_name)
+            except KeyError as e:
+                    raise AddressingError(f"Failed to process wire group between {wire_group.ports} in {self.address}: {e}")
             if local_ports:
                 child_connector_port = self._create_local_child_connection(
                     type, child_object, child_ports, wire_root
@@ -309,7 +378,10 @@ class CompositePortedObjectWithConnections(
                 child_object._process_wire_group(type, wire_group)
         elif num_child_connections > 1:
             for child_name, child_ports in ports_by_child.items():
-                child_object = self.children.get(child_name)
+                try:
+                    child_object = self._get_child(child_name)
+                except KeyError as e:
+                    raise AddressingError(f"Failed to process wire group between {wire_group.ports} in {self.address}: {e}")
                 child_connector_port = self._create_local_child_connection(
                     type, child_object, child_ports, wire_root
                 )
@@ -322,42 +394,65 @@ class CompositePortedObjectWithConnections(
     def _create_wire(self, type, local_ports, child_ports):
         local_ports = set(local_ports)
         child_ports = set(child_ports)
+        print(f"creating {type} wire with local ports {local_ports} and child ports {child_ports}")
         if type == "variable":
             self._create_variable_wire(local_ports, child_ports)
         elif type == "parameter":
             self._create_parameter_wire(local_ports, child_ports)
 
     def _create_variable_wire(self, local_ports, child_ports):
+        def get_local_port_address(ports):
+            return set(port.strip_address().address for port in ports)
+
+        child_variable_ports = get_local_port_address(child_ports)
         if local_ports:
             if len(local_ports) > 1:
-                raise Exception
-            print("VARIABLE CONNECTION", local_ports.pop(), child_ports)
+                raise Exception()
+            print("VARIABLE CONNECTION", local_ports, child_ports)
+            local_variable_ports = get_local_port_address(local_ports)
+            self.add_variable_wire(child_variable_ports, local_variable_ports.pop())
         else:
+            dummy_variable = self.add_dummy_port("internal_variable")
             print(
                 "INTERNAL VARIABLE CONNECTION",
-                self.add_dummy_port("internal_variable"),
+                dummy_variable,
                 child_ports,
+            )
+            self.add_variable_wire(
+                child_variable_ports,
+                output_name=dummy_variable,
             )
 
     def _create_parameter_wire(self, local_ports, child_ports):
-        child_output_ports = set(port for port in child_ports if isinstance(port, AddressedOutputPort))
+        child_output_ports = set(
+            port for port in child_ports if isinstance(port, AddressedOutputPort)
+        )
         all_ports = local_ports.union(child_ports)
+
+        def get_local_port_address(ports):
+            return set(port.strip_address().address for port in ports)
+
+        all_parameter_ports = get_local_port_address(all_ports)
         if child_output_ports:
             if len(child_output_ports) > 1:
                 raise Exception()
-            else:
-                source = child_output_ports.pop()
-                all_ports.remove(source)
-                print("PARAMETER CONNECTION from", source, "to", all_ports)
+            child_output_ports = get_local_port_address(child_output_ports)
+            source = child_output_ports.pop()
+            all_parameter_ports.remove(source)
+            # print("PARAMETER CONNECTION from", source, "to", all_parameter_ports)
+            self.add_directed_wire(source, all_parameter_ports)
         else:
             if len(local_ports) > 1:
                 raise Exception()
+            local_ports = get_local_port_address(local_ports)
             source = local_ports.pop()
-            all_ports.remove(source)
-            print("PARAMETER CONNECTION from", source, "to", all_ports)
-        
+            all_parameter_ports.remove(source)
+            # print("PARAMETER CONNECTION from", source, "to", all_parameter_ports)
+            self.add_directed_wire(source, all_parameter_ports)
 
-    def _create_local_child_connection(self, type: str, child_object, child_ports, wire_root):
+    def _create_local_child_connection(
+        self, type: str, child_object, child_ports, wire_root
+    ):
         local_child_ports = child_ports.get("child_ports")
         descendent_child_ports = child_ports.get("descendent_ports")
         all_ports = local_child_ports + descendent_child_ports
@@ -388,11 +483,8 @@ class CompositePortedObjectWithConnections(
                     local_child_port_name = child_object.add_dummy_port(dummy_type)
                 else:
                     raise Exception()
-                print(local_child_port_name)
                 local_child_port = AddressedPortClass.from_port(
-                    child_object._get_port_by_name(
-                        local_child_port_name, type=type
-                    ),
+                    child_object._get_port_by_name(local_child_port_name, type=type),
                     child_object.get_truncated_address(self.name),
                 )
                 all_ports.append(local_child_port)

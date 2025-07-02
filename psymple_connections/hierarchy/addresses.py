@@ -30,7 +30,10 @@ class HierarchyAddress(str):
     
     def get_common_ancestor(self, address: HierarchyAddress):
         common_ancestors = [A for A in self.address_parts if A in address.address_parts]
-        return common_ancestors[-1]
+        if common_ancestors:
+            return common_ancestors[-1]
+        else:
+            return None
     
     def prefix(self, name: str, allow_repetition: bool = False):
         """
@@ -58,5 +61,5 @@ class PortHierarchyAddress(HierarchyAddress):
     def __new__(cls, address: HierarchySeparatedStr):
         obj = super().__new__(cls, address)
         obj.port_name = obj.address_parts.pop(-1)
-        obj.object_address = HIERARCHY_SEPARATOR.join(obj.address_parts)
+        obj.object_address = HierarchyAddress(HIERARCHY_SEPARATOR.join(obj.address_parts))
         return obj
