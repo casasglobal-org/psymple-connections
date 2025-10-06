@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psymple-connections"
+authors = [
+    {name = "George Simmons", email = "g.simmons@idems.international"},
+]
+description = "Authoring infrastructure for psymple"
+readme = "README.md"
+dependencies = [
+    "psymple >= 1.0.3",
+]
+requires-python = ">=3.10"
+#keywords = ["one", "two"]
+#license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+#version = "0.0.3"
+
+[tool.setuptools_scm]

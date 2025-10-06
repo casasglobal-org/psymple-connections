@@ -4,9 +4,8 @@ from psymple.build import HIERARCHY_SEPARATOR
 
 from typing import NewType
 
-HierarchySeparatedStr = NewType("HierarchySeparatedStr", str)
-"""A string consisting of components separated by HIERARCHY_SEPARATOR, by default '.'."""
-
+class HierarchySeparatedStr(str):
+    """A string consisting of components separated by HIERARCHY_SEPARATOR, by default '.'."""
 
 class HierarchyAddress(str):
     """

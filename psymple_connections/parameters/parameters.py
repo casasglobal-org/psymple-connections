@@ -15,7 +15,7 @@ class AddressAccessedDict(dict):
                 return default
         return d
     
-    def set(self, values):
+    def set(self, **values: dict):
         """Set values in the nested dictionary using a dictionary of (address, value) pairs."""
         for address, param in values.items():
             self._set(address, param)
@@ -59,13 +59,48 @@ A.merge(B)
 
 print(A)
 """
+class Parameters:
+    def __init__(self, instance_params={}, ancestor_params={}):
+        self.instance = AddressAccessedDict(instance_params)
+        self.ancestor = AddressAccessedDict(ancestor_params)
 
-class Parameters(AddressAccessedDict):
+    @classmethod
+    def from_ancestor(cls, new_params: dict, ancestor_parameters):
+        # ancestor_parameters can be a Parameters object or dict
+        if isinstance(ancestor_parameters, Parameters):
+            ancestor_dict = ancestor_parameters.to_dict()
+        else:
+            ancestor_dict = dict(ancestor_parameters)
+        return cls(new_params, ancestor_dict)
+
+    def find(self, address: str, default=None, search_ancestry=True):
+        value = self.instance.get(address)
+        if value is not None:
+            return value
+        if search_ancestry:
+            value = self.ancestor.get(address)
+            if value is not None:
+                return value
+        if default is not None:
+            return default
+        raise Exception(f"Parameter with address {address} not found with no default specified.")
+
+    def to_dict(self):
+        # Combine instance and ancestor for export, instance takes precedence
+        result = AddressAccessedDict(self.ancestor)
+        result.merge(self.instance)
+        return result
+
+    def __repr__(self):
+        return f"Parameters(instance={self.instance}, ancestor={self.ancestor})"
+    
+
+class ParametersOLD(AddressAccessedDict):
     @classmethod
     def from_ancestor(cls, new_params: dict, ancestor_params):
         combined_params = ancestor_params.get("ancestor")
         combined_params.merge(ancestor_params.get("instance"))
-        print(combined_params)
+        print("copar", combined_params)
         return Parameters(new_params, combined_params)
     
     def __init__(self, new_params = {}, ancestor_params = {}):

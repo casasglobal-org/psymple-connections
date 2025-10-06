@@ -21,7 +21,6 @@ class TestConnection:
     def test_prefix_ports(self):
         P = AddressedPort("p", "A.B.C.p")
         Q = AddressedPort("q", "C.D.q")
-        obj_address = HierarchyAddress("A.B.C")
         
         # Test 1 - prefix by existing object name
         C = Connection(P, Q)

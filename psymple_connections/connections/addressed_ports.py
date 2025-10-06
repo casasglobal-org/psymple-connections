@@ -43,15 +43,15 @@ class AddressedParameterPort(AddressedPort):
     def from_port(cls, port: Port, object_address: HierarchySeparatedStr|HierarchyAddress, **kwargs):
         port_address = PortHierarchyAddress(HIERARCHY_SEPARATOR.join([object_address, port.name]))
         if isinstance(port, InputPort):
-            port_class = AddressedInputPort
+            return AddressedInputPort(port.name, port_address, port.description, port.default_value, **kwargs)
         elif isinstance(port, OutputPort):
             if isinstance(port, BaseOutputPort):
                 port_class = AddressedBaseOutputPort
             else:
                 port_class = AddressedOutputPort
+            return port_class(port.name, port_address, port.description, **kwargs)
         else:
             raise TypeError(f"Unrecognised port type for parameter port: {type(port)} for port {port_address}.")
-        return port_class(port.name, port_address, port.description, **kwargs)
     
 class AddressedInputPort(AddressedParameterPort, InputPort):
     def __init__(self, name: str, address: PortHierarchyAddress, description: str = "", default_value = None):

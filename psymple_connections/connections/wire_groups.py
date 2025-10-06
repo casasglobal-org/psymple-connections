@@ -34,8 +34,11 @@ class WireGroup(ABC):
         self._validate_ports(ports)
         self.ports = ports
         self.port_hierarhcy = self._organise_by_hierarchy(ports)
+        print("HIERARCHY", self.port_hierarhcy, create_root)
         if not root and create_root:
+            print("CREATING ROOT")
             root = self._get_root()
+        print("WIRE ROOT", root)
         self.root = root
 
     def _organise_by_hierarchy(self, ports: tuple):
@@ -106,11 +109,14 @@ class ParameterWireGroup(WireGroup):
         output_ports = [port for port in ports if isinstance(port, AddressedOutputPort)]
         if not output_ports:
             # If there are no output ports, the root must be the only local port.
+            # BUG: This is wrong, a wire can go between descendents without being local.
+            # Temp fix made.
             local_ports = self.port_hierarhcy.get("locals")
             number_local_ports = len(local_ports)
             if number_local_ports == 0:
+                return None
                 raise WireGroupError(
-                    f"The parameter wire connecting ports {self.ports} has {number_local_ports} "
+                    f"The parameter wire connecting ports {self.ports} has no local ports, "
                     f"could not determine a root."
                 )
             if number_local_ports == 1:
@@ -123,9 +129,9 @@ class ParameterWireGroup(WireGroup):
         else: 
             # Find the unique base output port, or raise an error if none or more than one is found.
             # TODO: This algo is junk. What do?
-            child_ports = self.port_hierarhcy.get("by_child")
+            hierarchy_child_ports = self.port_hierarhcy.get("by_child")
             base_output_ports = []
-            for child_name, split_ports in child_ports.items():
+            for split_ports in hierarchy_child_ports.values():
                 child_ports = split_ports.get("child_ports")
                 descendent_ports = split_ports.get("descendent_ports")
                 all_ports = child_ports + descendent_ports
@@ -134,6 +140,7 @@ class ParameterWireGroup(WireGroup):
 
             number_base_output_ports = len(base_output_ports)
             if number_base_output_ports == 0:
+                #return None
                 raise WireGroupError(
                     f"The parameter wire connecting ports {self.ports} has no base ports. "
                     f"Could not determine a root."

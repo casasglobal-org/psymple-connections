@@ -90,12 +90,12 @@ test_parameter_connections.add_connections(
 #B2.add_input_connections(a="A.a")
 
 test_parameter_connections.add_connections(
+    #Connection(
+    #    AddressedInputPort("a", "A.a"),
+    #    AddressedInputPort("a", "A.B2.a"),
+    #),
     Connection(
-        AddressedInputPort("a", "A.a"),
         AddressedInputPort("a", "A.B2.a"),
-    ),
-    Connection(
-        AddressedInputPort("a", "A.a"),
         AddressedInputPort("a", "A.B2.C4.D4.a"),
     ),
 )

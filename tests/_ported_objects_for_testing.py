@@ -1,5 +1,6 @@
 from psymple_connections.connections.connection_ported_objects import PortedObjectWithConnections, PortedObjectWithAssignmentsAndConnections
 from psymple_connections.hierarchy.ported_objects import PortedObjectWithHierarchy
+from psymple_connections.connections.automatic.search import PortedObjectWithSearch
 from psymple.build.abstract import PortedObject
 
 class PortedObjectTest(PortedObject):
@@ -16,4 +17,7 @@ class PortedObjectWithHierarchyTest(PortedObjectTest, PortedObjectWithHierarchy)
     pass
 
 class PortedObjectWithAssignmentsAndConnectionsTest(PortedObjectTest, PortedObjectWithAssignmentsAndConnections):
+    pass
+
+class PortedObjectWithSearchTest(PortedObjectTest, PortedObjectWithSearch):
     pass

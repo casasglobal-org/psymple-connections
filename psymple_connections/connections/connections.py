@@ -17,6 +17,12 @@ class Connection:
     @property
     def addressed_ports(self):
         return {self.first_port.address: self.first_port, self.second_port.address: self.second_port}
+    
+class TemporaryConnection:
+    def __init__(self, port: str, connections: str | set[str], **options):
+        self.port = port
+        self.connections = connections if isinstance(connections, set) else {connections}
+        self.options = options
         
 class Connections(list):
     def __init__(self, *connections: Connection):
