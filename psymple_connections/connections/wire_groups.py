@@ -34,11 +34,11 @@ class WireGroup(ABC):
         self._validate_ports(ports)
         self.ports = ports
         self.port_hierarhcy = self._organise_by_hierarchy(ports)
-        print("HIERARCHY", self.port_hierarhcy, create_root)
+        #print("HIERARCHY", self.port_hierarhcy, create_root)
         if not root and create_root:
-            print("CREATING ROOT")
+            #print("CREATING ROOT")
             root = self._get_root()
-        print("WIRE ROOT", root)
+        #print("WIRE ROOT", root)
         self.root = root
 
     def _organise_by_hierarchy(self, ports: tuple):

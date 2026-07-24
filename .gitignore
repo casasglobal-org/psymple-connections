@@ -196,4 +196,3 @@ cython_debug/
 # Test files
 test.py
 test_*.py
-test.py

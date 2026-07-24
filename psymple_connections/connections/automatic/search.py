@@ -23,7 +23,7 @@ class PortedObjectWithSearch(PortedObjectWithConnections):
         if _filter_callback:
             missing_inputs = _filter_callback(missing_inputs)
 
-        print("filtered missing inputs", self.address, missing_inputs)
+        #print("filtered missing inputs", self.address, missing_inputs)
 
         self._connect_to_missing_inputs(missing_inputs)
 
@@ -52,6 +52,6 @@ class PortedObjectWithSearch(PortedObjectWithConnections):
             port_address = f"{self.parent.name}.{port_name}"
             connections[port_name] = port_address
 
-        print("ADDING CONNECTIONS", self.address, connections)
+        #print("ADDING CONNECTIONS", self.address, connections)
         if connections:
             self.add_input_connections(delay_connection_parsing=True, **connections)
