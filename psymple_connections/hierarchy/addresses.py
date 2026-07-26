@@ -49,8 +49,10 @@ class HierarchyAddress(str):
             return type(self)(new_address)
         
     def strip(self):
-        new_address = self.split(HIERARCHY_SEPARATOR, 1)[1]
-        return type(self)(new_address)
+        parts = self.split(HIERARCHY_SEPARATOR, 1)
+        if len(parts) == 1:
+            raise ValueError(f"Cannot strip a single-component address: {self}")
+        return type(self)(parts[1])
 
 
 class PortHierarchyAddress(HierarchyAddress):

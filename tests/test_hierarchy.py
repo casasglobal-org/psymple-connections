@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 from psymple_connections.hierarchy.addresses import HierarchyAddress, PortHierarchyAddress
 from psymple_connections.hierarchy.ported_objects import PortedObjectWithHierarchy, CompositePortedObjectWithHierarchy
 
@@ -68,6 +70,12 @@ class TestHierarchyAddress:
         address = address.strip()
         assert address == "C"
 
+    def test_hierarchy_address_strip_single(self):
+        address = HierarchyAddress("A")
+
+        with pytest.raises(ValueError):
+            address.strip()
+
     def test_port_hierarchy_address(self):
         address = PortHierarchyAddress("A.B.C.p")    
 
@@ -130,4 +138,13 @@ class TestCompositePortedObjectWithHierarchy:
 
         assert X.children == {"Y": Y}
         assert Y.parent == X
+
+    def test_get_child_by_address(self):
+        Z = PortedObjectWithHierarchyTest(name="Z")
+        Y = CompositePortedObjectWithHierarchy(name="Y", children=[Z])
+        X = CompositePortedObjectWithHierarchy(name="X", children=[Y])
+
+        assert X.get_child_by_address(HierarchyAddress("X")) == X
+        assert X.get_child_by_address(HierarchyAddress("X.Y")) == Y
+        assert X.get_child_by_address(HierarchyAddress("X.Y.Z")) == Z
 

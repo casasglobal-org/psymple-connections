@@ -11,6 +11,7 @@ description = "Authoring infrastructure for psymple"
 readme = "README.md"
 dependencies = [
     "psymple >= 1.0.3",
+    "networkx >= 3.0",
 ]
 requires-python = ">=3.10"
 #keywords = ["one", "two"]

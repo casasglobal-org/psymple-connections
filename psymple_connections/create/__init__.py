@@ -1,3 +1,5 @@
+from ..connections.connection_ported_objects import PortedObjectWithConnections
+
 class psymple_features:
     CONNECTIONS = PortedObjectWithConnections
 
@@ -14,5 +16,3 @@ def create_ported_features_object(*features):
 @create_ported_features_object(psymple_features.CONNECTIONS)
 class PortedObjectNew:
     pass
-
-PortedObjectNew(name="hi")

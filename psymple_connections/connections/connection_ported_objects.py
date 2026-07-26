@@ -12,7 +12,7 @@ from .addressed_ports import (
     BaseOutputPort,
 )
 from .compiler import ConnectionsCompiler
-from .wire_groups import VariableWireGroup, ParameterWireGroup
+from .wire_groups import VariableWireGroup, ParameterWireGroup, WireGroupError
 
 from psymple.build import PortedObjectData, HIERARCHY_SEPARATOR
 from psymple.build.abstract import PortedObject, PortedObjectWithAssignments
@@ -143,7 +143,7 @@ class PortedObjectWithConnections(
                 port_address = PortHierarchyAddress(destination)
                 try:
                     common_ancestor = self.get_ancestor_by_address(port_address)
-                except:
+                except Exception:
                     raise AddressingError(
                         f"Incorrect addressing detected from {self.address}: the destintion "
                         f"port {port_address} could not be found for source {source}"
@@ -552,7 +552,10 @@ class CompositePortedObjectWithConnections(
         child_variable_ports = get_local_port_address(child_ports)
         if local_ports:
             if len(local_ports) > 1:
-                raise Exception()
+                raise WireGroupError(
+                    f"Cannot create a variable wire in {self.address}: expected at most "
+                    f"one local port but found {local_ports}."
+                )
             local_variable_ports = get_local_port_address(local_ports)
             self.add_variable_wire(child_variable_ports, local_variable_ports.pop())
         else:
@@ -574,7 +577,10 @@ class CompositePortedObjectWithConnections(
         all_parameter_ports = get_local_port_address(all_ports)
         if child_output_ports:
             if len(child_output_ports) > 1:
-                raise Exception()
+                raise WireGroupError(
+                    f"Cannot create a parameter wire in {self.address}: expected at most "
+                    f"one output (source) port but found {child_output_ports}."
+                )
             child_output_ports = get_local_port_address(child_output_ports)
             source = child_output_ports.pop()
             all_parameter_ports.remove(source)
@@ -582,7 +588,10 @@ class CompositePortedObjectWithConnections(
             self.add_directed_wire(source, all_parameter_ports)
         else:
             if len(local_ports) > 1:
-                raise Exception()
+                raise WireGroupError(
+                    f"Cannot create a parameter wire in {self.address}: expected at most "
+                    f"one local (source) port but found {local_ports}."
+                )
             local_ports = get_local_port_address(local_ports)
             source = local_ports.pop()
             all_parameter_ports.remove(source)
@@ -607,7 +616,11 @@ class CompositePortedObjectWithConnections(
                 # BUG: This can be triggered if the object has two different ports which are connected from the
                 # same source. It feels like this should be allowed. In this case the passed "root" to
                 # the wire group is not really the root.
-                raise Exception()
+                raise WireGroupError(
+                    f"Cannot process wire group in {self.address}: child "
+                    f"{child_object.name} has multiple local ports {local_child_ports} in "
+                    f"one group (multiple ports sharing a source is not yet supported)."
+                )
             local_child_port = local_child_ports[0]
             if descendent_child_ports:
                 # wire_group = WireGroupClass(*all_ports, root=local_child_port)
@@ -628,7 +641,9 @@ class CompositePortedObjectWithConnections(
                         dummy_type = DummyTypes.INPUT
                     local_child_port_name = child_object.add_dummy_port(dummy_type)
                 else:
-                    raise Exception()
+                    raise WireGroupError(
+                        f"Cannot process wire group in {self.address}: unknown wire type {type!r}."
+                    )
                 local_child_port = AddressedPortClass.from_port(
                     child_object._get_port_by_name(local_child_port_name, type=type),
                     child_object.get_truncated_address(self.name),

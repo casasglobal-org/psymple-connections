@@ -114,11 +114,9 @@ class ParameterWireGroup(WireGroup):
             local_ports = self.port_hierarhcy.get("locals")
             number_local_ports = len(local_ports)
             if number_local_ports == 0:
+                # No local port and no output: the root is created downstream as a
+                # dummy connector, so there is no root to return here.
                 return None
-                raise WireGroupError(
-                    f"The parameter wire connecting ports {self.ports} has no local ports, "
-                    f"could not determine a root."
-                )
             if number_local_ports == 1:
                 return local_ports[0]
             else:

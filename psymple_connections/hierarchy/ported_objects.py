@@ -19,17 +19,15 @@ class PortedObjectWithHierarchy(PortedObject):
     
     def get_child_by_address(self, address: HierarchyAddress):
         child_object_name = address.ancestor_object_name
-        if hasattr(self, "children"):
-            if address in self.children:
-                return self.children[address]
         if child_object_name == self.name:
-            return self.get_child_by_address(address)
-        else:
-            try:
-                child_object = self.children[child_object_name]
-            except (AttributeError, KeyError):
-                raise Exception("Child not found")
-            return child_object.get_child_by_address(address)
+            if len(address.address_parts) == 1:
+                return self
+            return self.get_child_by_address(address.strip())
+        try:
+            child_object = self.children[child_object_name]
+        except (AttributeError, KeyError):
+            raise Exception("Child not found")
+        return child_object.get_child_by_address(address)
 
 
     @property
